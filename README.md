@@ -1,27 +1,31 @@
 <p align="center">
   <img width="180px" src="https://i.ibb.co/Qn1W6cP/image.png" align="center"/>
-  <h2 align="center">TheMystic-Bot-MD</h2>
-  <p align="center">Bot para WhatsApp automatizado, baseado em Node.js, com múltiplas funções e personalizações.</p>
+  <h2 align="center">METAJI-BOT</h2>
+  <p align="center">
+    Bot para WhatsApp automatizado, baseado em Node.js, com múltiplas funções e personalizações.
+    <br />
+    <small>Baseado no projeto <a href="https://github.com/BrunoSobrino/TheMystic-Bot-MD">TheMystic-Bot-MD</a>.</small>
+  </p>
 </p>
 
 <p align="center">
-  <a href="https://github.com/GroupMetaJI/TheMystic-Bot-MD/graphs/contributors">
-    <img alt="Contribuidores" src="https://img.shields.io/github/contributors/GroupMetaJI/TheMystic-Bot-MD?style=for-the-badge" />
+  <a href="https://github.com/GroupMetaJI/metaji-bot/graphs/contributors">
+    <img alt="Contribuidores" src="https://img.shields.io/github/contributors/GroupMetaJI/metaji-bot?style=for-the-badge" />
   </a>
-  <a href="https://github.com/GroupMetaJI/TheMystic-Bot-MD/issues">
-    <img alt="Issues" src="https://img.shields.io/github/issues/GroupMetaJI/TheMystic-Bot-MD?style=for-the-badge" />
+  <a href="https://github.com/GroupMetaJI/metaji-bot/issues">
+    <img alt="Issues" src="https://img.shields.io/github/issues/GroupMetaJI/metaji-bot?style=for-the-badge" />
   </a>
-  <a href="https://github.com/GroupMetaJI/TheMystic-Bot-MD/pulls">
-    <img alt="Pull Requests" src="https://img.shields.io/github/issues-pr/GroupMetaJI/TheMystic-Bot-MD?style=for-the-badge" />
+  <a href="https://github.com/GroupMetaJI/metaji-bot/pulls">
+    <img alt="Pull Requests" src="https://img.shields.io/github/issues-pr/GroupMetaJI/metaji-bot?style=for-the-badge" />
   </a>
-  <a href="https://github.com/GroupMetaJI/TheMystic-Bot-MD/commits">
-    <img alt="Commits" src="https://img.shields.io/github/commit-activity/m/GroupMetaJI/TheMystic-Bot-MD?style=for-the-badge" />
+  <a href="https://github.com/GroupMetaJI/metaji-bot/commits">
+    <img alt="Commits" src="https://img.shields.io/github/commit-activity/m/GroupMetaJI/metaji-bot?style=for-the-badge" />
   </a>
-  <a href="https://github.com/GroupMetaJI/TheMystic-Bot-MD">
-    <img alt="Stars" src="https://img.shields.io/github/stars/GroupMetaJI/TheMystic-Bot-MD?style=for-the-badge" />
+  <a href="https://github.com/GroupMetaJI/metaji-bot">
+    <img alt="Stars" src="https://img.shields.io/github/stars/GroupMetaJI/metaji-bot?style=for-the-badge" />
   </a>
-  <a href="https://github.com/GroupMetaJI/TheMystic-Bot-MD/fork">
-    <img alt="Forks" src="https://img.shields.io/github/forks/GroupMetaJI/TheMystic-Bot-MD?style=for-the-badge" />
+  <a href="https://github.com/GroupMetaJI/metaji-bot/fork">
+    <img alt="Forks" src="https://img.shields.io/github/forks/GroupMetaJI/metaji-bot?style=for-the-badge" />
   </a>
 </p>
 
@@ -125,8 +129,8 @@ Aqui você encontra **comunidades de suporte** para **tirar dúvidas**, **compar
 
 Conheça os **colaboradores** que ajudaram no desenvolvimento deste projeto.
 
-<a href="https://github.com/GroupMetaJI/TheMystic-Bot-MD/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=GroupMetaJI/TheMystic-Bot-MD" />
+  <a href="https://github.com/GroupMetaJI/metaji-bot/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=GroupMetaJI/metaji-bot" />
 </a>
 
 ## Agradecimentos
@@ -140,3 +144,10 @@ Conheça os **colaboradores** que ajudaram no desenvolvimento deste projeto.
 <a href="https://github.com/GroupMetaJI">
   <img src="https://i.ibb.co/Qn1W6cP/image.png" width="180px"/>
 </a>
+
+<p align="center">
+  <sub>
+    METAJI-BOT é baseado no projeto
+    <a href="https://github.com/BrunoSobrino/TheMystic-Bot-MD">BrunoSobrino/TheMystic-Bot-MD</a>.
+  </sub>
+</p>
