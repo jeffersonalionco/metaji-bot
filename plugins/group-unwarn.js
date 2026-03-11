@@ -1,0 +1,21 @@
+const handler = async (m, {conn, text, command, usedPrefix}) => {
+  const pp = './src/assets/images/menu/main/warn.jpg';
+  let who;
+  if (m.isGroup) who = conn.parseMention(text).length > 0 ? await conn.parseMention(text)[0] : m.quoted ? await m?.quoted?.sender : text;
+  else who = m.chat;
+  const user = global.db.data.users[who];
+  const bot = global.db.data.settings[conn.user.jid] || {};
+  const warntext = `*[❗] Marque uma pessoa ou responda a uma mensagem do grupo.*\n*${usedPrefix + command} @${global.suittag}*`;
+  if (!who) throw m.reply(warntext, m.chat, {mentions: conn.parseMention(warntext)});
+  if (conn.parseMention(text).includes(conn.user.jid)) return;
+  if (user.warn == 0) throw `*[❗] O usuário tem 0 advertências.*`;
+  user.warn -= 1;
+  await m.reply(`${user.warn == 1 ? `*@${who.split`@`[0]}*` : `♻️ *@${who.split`@`[0]}*`}Uma advertência foi removida.\n*Advertências:* ${user.warn}/3*`, null, {mentions: [who]});
+};
+handler.tags = ['group'];
+handler.help = ['unwarn'];
+handler.command = /^(unwarn|delwarn|deladvertir|deladvertencia|delwarning)$/i;
+handler.group = true;
+handler.admin = true;
+handler.botAdmin = true;
+export default handler;

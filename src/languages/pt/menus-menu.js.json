@@ -1,0 +1,46 @@
+{
+    "plugins": {
+        "menu": {
+            "menu_header": "╭━━━〔 ✨ *METAJI BOT* 〕\n│\n│ 👤 *Usuário* : _%name_\n│ ⚡ *Prefixo* : _%p_\n│ 👑 *Dono*    : _@author_\n│ 📅 *Data*    : _@week, @date_\n│ ⏱️ *Ativo*   : _@uptime_\n│ 👥 *Usuários*: _@rtotal_\n│ 📦 *Plugins* : _@pluginsCount_\n│ 🟢 *Status*  : *Online*",
+            "user_info": "\n╭━━ 💎 *SEU PERFIL* ━━╮\n│\n│ 📊 *Nível*  : _@level_\n│ ✨ *XP*     : _@exp_\n│ 🏆 *Rank*   : _@role_\n│ 💎 *Limite* : _@limit_\n│ 💰 *Coins*  : _@money_\n│ 🎫 *Tokens* : _@joincount_\n│ ⭐ *Premium*: _@premium_ ",
+            "section_header": "",
+            "command_item": "*• %p@cmd* @islimit",
+            "section_footer": "\n\n🔙 *Voltar ao menu:*\n_%pmenu_",
+            "section_footer_limit": "\n\n⭐ _comando com limite_\n\n🔙 *Voltar ao menu:*\n_%pmenu_",
+            "error_message": "❌ *Ocorreu um erro ao gerar o menu:*",
+            "premium": {
+                "yes": "✅",
+                "no": "❌"
+            },
+            "tags": {
+                "info": "ℹ️ | *INFORMAÇÕES*",
+                "general": "📋 | *GERAL*",
+                "tools": "🛠️ | *FERRAMENTAS*",
+                "search": "🔎 | *PESQUISAS*",
+                "internet": "🌐 | *INTERNET*",
+                "ai": "🤖 | *INTELIGÊNCIA ARTIFICIAL*",
+                "download": "📥 | *DOWNLOADS*",
+                "converter": "🔄 | *CONVERSORES*",
+                "effects": "✨ | *EFEITOS*",
+                "img": "🖼️ | *IMAGENS*",
+                "music": "🎵 | *MÚSICA*",
+                "sticker": "🎭 | *STICKERS*",
+                "emoji": "😀 | *EMOJIS*",
+                "maker": "🎨 | *CRIADORES*",
+                "nulis": "✏️ | *TEXTO*",
+                "game": "🎮 | *JOGOS*",
+                "fun": "🎉 | *DIVERSÃO*",
+                "anime": "🎌 | *ANIME*",
+                "random": "🎲 | *ALEATÓRIO*",
+                "group": "👥 | *GRUPOS*",
+                "jadibot": "🤖 | *SUB-BOTS*",
+                "xp": "💎 | *EXPERIÊNCIA*",
+                "database": "🗄️ | *BANCO DE DADOS*",
+                "premium": "⭐ | *PREMIUM*",
+                "owner": "👑 | *DONO*",
+                "nsfw": "🔞 | *ADULTO*",
+                "tyc": "📜 | *TERMOS*"
+            }
+        }
+    }
+}

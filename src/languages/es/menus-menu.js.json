@@ -1,0 +1,52 @@
+{
+    "plugins": {
+        "menu": {
+            "menu_header": "╭═══〘 ✯✯✯✯✯✯✯✯✯ 〙══╮\n║ ◉— *𝐓𝐡𝐞 𝐌𝐲𝐬𝐭𝐢𝐜 - 𝐁𝐨𝐭* —◉\n║≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡║\n║➤ *Hola,* @username\n║≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡║\n║➤ *Owner:* @author\n║➤ *Numero:* wa.me/@owner\n║➤ *PayPal:* paypal.me/GroupMetaJI\n║➤ *Fecha:* @week, @date\n║➤ *Tiempo activo:* @uptime\n║➤ *Usuarios:* @rtotal\n║➤ *Registrados:* @rtotalreg\n╰═══╡✯✯✯✯✯✯✯✯✯╞═══╯",
+            
+            "user_info": "┏━━━━━━━━━━━━━━━━┓\n┃ *< INFO DEL USUARIO />*\n┃≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡┃\n┣ ✯ *Nivel:* @level\n┣ ✯ *Experiencia:* @exp\n┣ ✯ *Rango:* @role\n┣ ✯ *Diamantes:* @limit\n┣ ✯ *MysticCoins:* @money\n┣ ✯ *Tokens:* @joincount\n┣ ✯ *Premium:* @premium\n┗━━━━━━━━━━━━━━━━┛\n",
+            
+            "section_header": "┏━━━━━━━━━━━━━━━━┓\n┃ @category\n┃≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡┃",
+            "command_item": "┣ ඬ⃟  □ @cmd @islimit",
+            "section_footer": "┗━━━━━━━━━━━━━━━━┛\n",
+            
+            "error_message": "[ ❌ ] Ocurrió un error al generar el menú:",
+            
+            "premium": {
+                "yes": "✅",
+                "no": "❌"
+            },
+            
+            "tags": {
+                "info": "<INFORMACION>",
+                "jadibot": "<SUBBOTS>",
+                "xp": "<XP>",
+                "tools": "<HERRAMIENTAS>",
+                "search": "<BUSQUEDAS>",
+                "downloader": "<DESCARGAS>",
+                "converter": "<CONVERTIDORES>",
+                "effects": "<EFECTOS>",
+                "game": "<JUEGOS>",
+                "group": "<GRUPOS>",
+                "nsfw": "<ADULTOS>",
+                "owner": "<PROPIETARIOS>",
+                "sticker": "<STICKERS>",
+                "img": "<IMAGENES>",
+                "ai": "<INTELIGENCIA ARTIFICIAL>",
+                "music": "<MUSICA>",
+                "internet": "<INTERNET>",
+                "download": "<DESCARGA>",
+                "tyc": "<TERMINOS Y CONDICIONES>",
+                "maker": "<CREADOR>",
+                "nulis": "<ESCRIBIR>",
+                "emoji": "<EMOJI>",
+                "database": "<BASE DE DATOS>",
+                "premium": "<PREMIUM>",
+                "random": "<ALEATORIO>",
+                "anime": "<ANIME>",
+                "fun": "<DIVERSION>",
+                "general": "<GENERAL>",
+                "herramientas": "<HERRAMIENTAS>"
+            }
+        }
+    }
+}

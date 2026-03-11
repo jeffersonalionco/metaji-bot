@@ -1,0 +1,41 @@
+{
+    "_detectevents": {
+        "promote": {
+            "header": "*Recentemente um membro foi promovido a administrador*",
+            "group": "*◦ Grupo:* @group",
+            "new_admin": "*◦ Novo admin:* @user",
+            "executed_by": "*◦ Executado por:* @user"
+        },
+        "demote": {
+            "header": "*Recentemente um administrador foi rebaixado a membro*",
+            "group": "*◦ Grupo:* @group",
+            "removed_admin": "*◦ Removido:* @user",
+            "executed_by": "*◦ Executado por:* @user"
+        },
+        "member_add": {
+            "header": "*Recentemente um novo membro foi adicionado*",
+            "group": "*◦ Grupo:* @group",
+            "added_user": "*◦ Adicionado:* @user",
+            "added_by": "*◦ Adicionado por:* @user",
+            "self_added": "*◦ Entrou:* @user"
+        },
+        "member_remove": {
+            "header": "*Recentemente um membro foi removido do grupo*",
+            "group": "*◦ Grupo:* @group",
+            "removed_user": "*◦ Removido:* @user",
+            "removed_by": "*◦ Removido por:* @user",
+            "self_removed": "*◦ Saiu:* @user"
+        },
+        "group_settings": {
+            "header": "*Recentemente as configurações do grupo foram alteradas*",
+            "group": "*◦ Grupo:* @group",
+            "action": "*◦ O grupo foi:* @action",
+            "executed_by": "*◦ Executado por:* @user"
+        },
+        "group_name": {
+            "header": "*Recentemente o nome do grupo foi alterado*",
+            "new_name": "*◦ Novo nome:* @name",
+            "executed_by": "*◦ Executado por:* @user"
+        }
+    }
+}

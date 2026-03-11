@@ -1,0 +1,11 @@
+import MessageType from "baileys";
+
+const handler = async (m, {conn, usedPrefix, command}) => {
+  const room = Object.values(conn.game).find((room) => room.id.startsWith('tictactoe') && [room.game.playerX, room.game.playerO].includes(m.sender));
+  if (room == undefined) return conn.sendButton(m.chat, '*[❗] Você não está em nenhuma partida de Jogo da Velha.*', wm, null, [['Iniciar sala de jogo', `${usedPrefix}ttt partida nova`]], m);
+  delete conn.game[room.id];
+  await m.reply('Partida apagada/encerrada com sucesso.');
+};
+handler.command = /^(delttt|deltt|delxo|deltictactoe)$/i;
+handler.fail = null;
+export default handler;

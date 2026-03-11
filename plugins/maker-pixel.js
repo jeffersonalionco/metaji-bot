@@ -1,0 +1,13 @@
+
+
+const handler = async (m, {conn, usedprefix, text}) => {
+  conn.sendFile(m.chat, global.API('https://some-random-api.com', '/canvas/pixelate', {
+    avatar: await conn.profilePictureUrl(m.sender, 'image').catch((_) => 'https://telegra.ph/file/24fa902ead26340f3df2c.png'),
+    comment: text,
+    username: conn.getName(m.sender),
+  }), 'error.png', '*Imagem pixelada com sucesso!!*', m);
+};
+handler.help = ['pixel', 'difuminar'];
+handler.tags = ['maker'];
+handler.command = /^(pixel|pixelar|difuminar)$/i;
+export default handler;
