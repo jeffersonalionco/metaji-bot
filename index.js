@@ -55,16 +55,16 @@ async function start(file) {
   if (isRunning) return;
   isRunning = true;
 
-  say('The Mystic\nBot', {
+  say('MetaJI\nBot', {
     font: 'chrome',
     align: 'center',
-    gradient: ['red', 'magenta'],
+    gradient: ['blue', 'magenta'],
   });
 
-  say(`Bot creado por Group MetaJI`, {
+  say(`Bot recriado por Group MetaJI`, {
     font: 'console',
     align: 'center',
-    gradient: ['red', 'magenta'],
+    gradient: ['blue', 'magenta'],
   });
 
   verificarOCrearCarpetaAuth();
@@ -76,14 +76,26 @@ async function start(file) {
     return;
   }
 
-  const opcion = await question(chalk.yellowBright.bold('—◉ㅤSeleccione una opción (solo el numero):\n') + chalk.white.bold('1. Con código QR\n2. Con código de texto de 8 dígitos\n—> '));
+  const opcion = await question(
+    chalk.yellowBright.bold('—◉ㅤSelecione uma opção (apenas o número):\n') +
+      chalk.white.bold('1. Com código QR\n2. Com código de texto de 8 dígitos\n—> '),
+  );
 
   if (opcion === '2') {
-    const phoneNumber = await question(chalk.yellowBright.bold('\n—◉ㅤEscriba su número de WhatsApp:\n') + chalk.white.bold('◉ㅤEjemplo: +5219992095479\n—> '));
+    const phoneNumber = await question(
+      chalk.yellowBright.bold('\n—◉ㅤDigite seu número de WhatsApp:\n') +
+        chalk.white.bold('◉ㅤExemplo: +5511999999999\n—> '),
+    );
     const numeroTelefono = formatearNumeroTelefono(phoneNumber);
     
     if (!esNumeroValido(numeroTelefono)) {
-      console.log(chalk.bgRed(chalk.white.bold('[ ERROR ] Número inválido. Asegúrese de haber escrito su numero en formato internacional y haber comenzado con el código de país.\n—◉ㅤEjemplo:\n◉ +5219992095479\n')));
+      console.log(
+        chalk.bgRed(
+          chalk.white.bold(
+            '[ ERRO ] Número inválido. Verifique se você escreveu o número no formato internacional e começou com o código do país.\n—◉ㅤExemplo:\n◉ +5511999999999\n',
+          ),
+        ),
+      );
       process.exit(0);
     }
     
@@ -102,10 +114,10 @@ function forkProcess(file) {
   childProcess = fork();
 
   childProcess.on('message', (data) => {
-    console.log(chalk.green.bold('—◉ㅤRECIBIDO:'), data);
+    console.log(chalk.green.bold('—◉ㅤRECEBIDO:'), data);
     switch (data) {
       case 'reset':
-        console.log(chalk.yellow.bold('—◉ㅤSolicitud de reinicio recibida...'));
+        console.log(chalk.yellow.bold('—◉ㅤPedido de reinício recebido...'));
         childProcess.removeAllListeners();
         childProcess.kill('SIGTERM');
         isRunning = false;
@@ -118,12 +130,12 @@ function forkProcess(file) {
   });
 
   childProcess.on('exit', (code, signal) => {
-    console.log(chalk.yellow.bold(`—◉ㅤProceso secundario terminado (${code || signal})`));
+    console.log(chalk.yellow.bold(`—◉ㅤProcesso secundário encerrado (${code || signal})`));
     isRunning = false;
     childProcess = null;
     
     if (code !== 0 || signal === 'SIGTERM') {
-      console.log(chalk.yellow.bold('—◉ㅤReiniciando proceso...'));
+      console.log(chalk.yellow.bold('—◉ㅤReiniciando processo...'));
       setTimeout(() => start(file), 1000);
     }
   });
