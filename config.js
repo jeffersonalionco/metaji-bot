@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import {watchFile, unwatchFile} from 'fs';
 import chalk from 'chalk';
 import {fileURLToPath, pathToFileURL} from 'url';
@@ -10,6 +11,9 @@ global.confirmCode = ""
 global.authFile = `MysticSession`;
 
 // Multi-sessao: varios numeros WhatsApp na mesma execucao. Deixe enabled: false para bot unico (comportamento normal).
+// A senha das rotas /api/sessions/* vem de process.env.METAJI_SESSION_PASSWORD.
+// Exemplo no .env do metaji-bot:
+//   METAJI_SESSION_PASSWORD=minha_senha_forte_aqui
 global.multiSession = {
   enabled: true,
   // Pasta onde ficam TODAS as sessões (cada subpasta = uma sessão). Ao iniciar, todas com creds.json sobem automaticamente.
@@ -19,9 +23,17 @@ global.multiSession = {
     // { authDir: 'sessions/MysticSession1' },
   ],
   // Porta do mini-servidor para solicitar novas sessões pelo navegador (QR na tela). 0 = desligado.
-  serverPort: 3456,
-  // Chave secreta para acessar rotas /api/* externamente. Se vazio, rotas de API ficam desabilitadas.
-  apiSecretKey: 'abc123',
+  serverPort: Number(process.env.METAJI_SESSION_SERVER_PORT || 3456),
+  /**
+   * Senha para acessar as rotas HTTP de sessions (/api/sessions/*).
+   * Lida do .env (METAJI_SESSION_PASSWORD). Se vazio, as rotas de API ficam desabilitadas.
+   *
+   * Uso nas requisições:
+   *   - Header:  x-api-secret: <METAJI_SESSION_PASSWORD>
+   *     ou
+   *   - Header:  Authorization: Bearer <METAJI_SESSION_PASSWORD>
+   */
+  apiSecretKey: process.env.METAJI_SESSION_PASSWORD || '',
 };
 
 // Cambiar a true si el Bot responde a sus comandos con otros comandos.
