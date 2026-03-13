@@ -69,6 +69,15 @@ async function start(file) {
 
   verificarOCrearCarpetaAuth();
 
+  // Se o multiSession estiver habilitado, pula o fluxo interativo (QR/código)
+  // e delega toda a gestão de sessões para o multiSessionManager (servidor na porta 3456).
+  if (global.multiSession?.enabled) {
+    const args = [join(__dirname, file), ...process.argv.slice(2)];
+    setupMaster({ exec: args[0], args: args.slice(1) });
+    forkProcess(file);
+    return;
+  }
+
   if (verificarCredsJson()) {
     const args = [join(__dirname, file), ...process.argv.slice(2)];
     setupMaster({ exec: args[0], args: args.slice(1) });
