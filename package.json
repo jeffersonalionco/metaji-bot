@@ -37,6 +37,7 @@
     "@sefinek/google-tts-api": "*",
     "@shineiichijo/marika": "*",
     "@vitalets/google-translate-api": "^8.0.0",
+    "@whiskeysockets/baileys": "github:kobie3717/Baileys#fix/405-platform-macos",
     "acrcloud": "^1.4.0",
     "aptoide-scraper": "github:DIEGO-OFC/dv-aptoide-scraper",
     "awesome-phonenumber": "^2.68.0",

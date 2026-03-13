@@ -627,10 +627,23 @@ if (!fs.existsSync(`./${global.authFile}/creds.json`)) {
       }
 
       setTimeout(async () => {
-        let codigo = await conn.requestPairingCode(numeroTelefono);
-        codigo = codigo?.match(/.{1,4}/g)?.join("-") || codigo;
-        console.log(chalk.yellow('[ ℹ️ ] introduce el código de emparejamiento en WhatsApp.'));
-        console.log(chalk.black(chalk.bgGreen(`Su código de emparejamiento: `)), chalk.black(chalk.white(codigo)));
+        try {
+          console.log(chalk.cyan('[ DEBUG ] Generando código de emparejamiento...'), {
+            numeroTelefono,
+            registered: conn.authState?.creds?.registered,
+          });
+          let codigo = await conn.requestPairingCode(numeroTelefono);
+          console.log(chalk.cyan('[ DEBUG ] Codigo bruto de emparejamiento:'), codigo);
+          codigo = codigo?.match(/.{1,4}/g)?.join("-") || codigo;
+          if (!codigo) {
+            console.log(chalk.bgRed(chalk.white.bold('[ ERRO ] Nao foi possivel gerar o codigo de emparelhamento (codigo vazio).')));
+            return;
+          }
+          console.log(chalk.yellow('[ ℹ️ ] introduce el código de emparejamiento en WhatsApp.'));
+          console.log(chalk.black(chalk.bgGreen(`Su código de emparejamiento: `)), chalk.black(chalk.white(codigo)));
+        } catch (err) {
+          console.log(chalk.bgRed(chalk.white.bold('[ ERRO ] Falha ao gerar codigo de emparelhamento:')), err?.message || err);
+        }
       }, 3000);
     }
   }
