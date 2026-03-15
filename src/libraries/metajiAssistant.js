@@ -1,5 +1,6 @@
 import fetch from 'node-fetch'
 import { getMetajiConfig, getMetajiSessionDir } from './metajiWebhook.js'
+import { getAgentApiConfig } from './agentApi.config.js'
 import { loadAssistantHistory, appendAssistantHistory } from './metajiAssistantHistory.js'
 
 const MAX_IMAGE_MB = 4
@@ -52,7 +53,7 @@ function isSupportedMediaMessage(m) {
  */
 export async function tryMetajiAssistant(conn, m) {
   const config = getMetajiConfig(conn || global.conn)
-  if (!config.enabled || !config.baseUrl || !config.ownerApiKey) {
+  if (!config.enabled || !config.baseUrl) {
     return false
   }
 
@@ -78,7 +79,13 @@ export async function tryMetajiAssistant(conn, m) {
   const senderJid = (m?.key?.participant && typeof m.key.participant === 'string')
     ? m.key.participant
     : (m?.chat || m?.key?.remoteJid || '')
-  const senderNumber = (typeof senderJid === 'string' ? senderJid.replace(/@.*$/, '') : '') || undefined
+  const senderIdPart = typeof senderJid === 'string' ? senderJid.replace(/@.*$/, '').trim() : ''
+  const senderJidSuffix = typeof senderJid === 'string' ? (senderJid.includes('@') ? senderJid.slice(senderJid.indexOf('@')) : '') : ''
+  // Telefone apenas quando for numero real (@s.whatsapp.net). Evita usar ID (@lid) ou grupo (@g.us) como "telefone".
+  const senderNumber = senderJidSuffix === '@s.whatsapp.net' && senderIdPart
+    ? (senderIdPart.startsWith('+') ? senderIdPart : `+${senderIdPart}`)
+    : undefined
+  const senderId = senderIdPart || undefined
 
   const sessionDir = getMetajiSessionDir(conn || global.conn)
   const { history, expired } = loadAssistantHistory(sessionDir, chatId)
@@ -138,12 +145,42 @@ export async function tryMetajiAssistant(conn, m) {
     return false
   }
 
+  // 1) Agente por sessão (API externa): multi-sessão, identifica por x-api-secret + sessionName.
+  const agentApi = getAgentApiConfig(conn || global.conn)
+  if (agentApi.enabled && agentApi.sessionName) {
+    try {
+      const response = await fetch(`${agentApi.baseUrl}/bot-connect/session/agent/input`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-secret': agentApi.apiSecretKey,
+        },
+        body: JSON.stringify({
+          sessionName: agentApi.sessionName,
+          message: messageText,
+          context: (senderName || senderNumber || senderId || chatId) ? { senderName, senderNumber, senderId, chatId } : undefined,
+        }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (response.ok && data.handled && data.reply?.text) {
+        await socket.sendMessage(m.chat, { text: data.reply.text })
+        return true
+      }
+    } catch (err) {
+      console.error('[MetaJI agente sessão] Erro ao chamar API:', err?.message || err)
+    }
+  }
+
+  // 2) Assistente owner (fluxo antigo: ownerApiKey, menus, flow, etc.)
+  if (!config.ownerApiKey) {
+    return false
+  }
   try {
     const body = {
       chatId,
       message: messageText,
       history: history.length ? history : undefined,
-      context: (senderName || senderNumber) ? { senderName, senderNumber } : undefined,
+      context: (senderName || senderNumber || senderId) ? { senderName, senderNumber, senderId } : undefined,
     }
     if (media.length > 0) body.media = media
 

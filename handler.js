@@ -1116,9 +1116,12 @@ export async function participantsUpdate({ id, participants, action }) {
     case 'add':
     case 'remove':
       if (chat.welcome && !chat?.isBanned) {
-        if (action === 'remove' && participants.includes(m?.conn?.user?.jid)) return;
+        const botJid = m?.conn?.user?.jid
+        if (action === 'remove' && participants.some((p) => (typeof p === 'string' ? p : p?.id ?? p?.jid) === botJid)) return;
         const groupMetadata = await m?.conn?.groupMetadata(id) || (conn?.chats[id] || {}).metadata;
-        for (const user of participants) {
+        for (const participant of participants) {
+          const user = typeof participant === 'string' ? participant : (participant?.id ?? participant?.jid ?? '')
+          if (!user || typeof user !== 'string') continue
           try {
           let pp = await m?.conn?.profilePictureUrl(user, 'image').catch(_ => 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png?q=60');
            const apii = await mconn?.conn?.getFile(pp);
