@@ -30,6 +30,11 @@ export function loadAssistantHistory(sessionDir, chatId) {
     const entries = pruneOld(Array.isArray(rawEntries) ? rawEntries : [])
     const hadConversation = (Array.isArray(rawEntries) ? rawEntries : []).length > 0
     const expired = hadConversation && entries.length === 0
+    // Se expirou por inatividade, apaga o arquivo para iniciar um novo histórico na próxima interação.
+    if (expired) {
+      try { fs.unlinkSync(filePath) } catch (_) {}
+      return { history: [], expired: true }
+    }
     const history = entries.map((e) => ({ role: e.role, text: e.text || '' }))
     return { history, expired }
   } catch (_) {
@@ -46,6 +51,9 @@ export function loadAssistantHistory(sessionDir, chatId) {
  */
 export function appendAssistantHistory(sessionDir, chatId, userText, modelText) {
   try {
+    if (sessionDir && typeof sessionDir === 'string' && !fs.existsSync(sessionDir)) {
+      fs.mkdirSync(sessionDir, { recursive: true })
+    }
     const filePath = historyPath(sessionDir, chatId)
     let entries = []
     if (fs.existsSync(filePath)) {

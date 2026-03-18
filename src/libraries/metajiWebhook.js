@@ -26,6 +26,8 @@ export function getMetajiSessionDir(conn) {
 }
 
 let heartbeatTimer = null;
+let outboundTimer = null;
+const outboundInFlight = new Set();
 let lastSyncedConfigVersion = 0;
 let lastSyncedApiConfigVersion = 0;
 const MAX_EXECUTION_LOG_LENGTH = 4000;
@@ -164,6 +166,79 @@ async function requestOwnerApi(pathName, options = {}, conn) {
   } catch (error) {
     console.error('[MetaJI config] Erro ao consultar API:', error?.message || error);
     return {ok: false};
+  }
+}
+
+/**
+ * Busca mensagens pendentes na fila outbound da API e envia via WhatsApp.
+ * Chamado no heartbeat para sessionName da sessão atual.
+ */
+async function pollAndSendOutbound(conn) {
+  const config = getMetajiConfig(conn);
+  if (!config.enabled || !config.baseUrl || !config.ownerApiKey) return;
+
+  let sessionName;
+  try {
+    const { getSessionNameForApi } = await import('./agentApi.config.js');
+    const sessionDir = getMetajiSessionDir(conn);
+    const baseDir = global.__mainDir || process.cwd();
+    const authDir = sessionDir && sessionDir !== baseDir
+      ? path.relative(baseDir, sessionDir).replace(/\\/g, '/')
+      : '';
+    sessionName = getSessionNameForApi(authDir);
+  } catch (_) {
+    return;
+  }
+  if (!sessionName) return;
+
+  const { ok, data } = await requestOwnerApi(
+    `/bot-connect/outbound?sessionName=${encodeURIComponent(sessionName)}`,
+    { method: 'GET' },
+    conn,
+  );
+  if (!ok || !data?.items?.length) return;
+
+  const baseUrl = (config.baseUrl || '').replace(/\/$/, '');
+  const authHeader = { 'x-owner-api-key': config.ownerApiKey };
+
+  for (const item of data.items) {
+    if (!item?.id || outboundInFlight.has(item.id)) continue;
+    outboundInFlight.add(item.id);
+    let status = 'failed';
+    try {
+      const jid = item.remoteJid;
+      if (item.type === 'text') {
+        await conn.sendMessage(jid, { text: item.text || '' });
+        status = 'sent';
+      } else if (item.type === 'image' && item.mediaBase64) {
+        const buf = Buffer.from(item.mediaBase64, 'base64');
+        await conn.sendMessage(jid, {
+          image: buf,
+          caption: item.text || undefined,
+        });
+        status = 'sent';
+      } else if (item.type === 'video' && item.mediaBase64) {
+        const buf = Buffer.from(item.mediaBase64, 'base64');
+        await conn.sendMessage(jid, {
+          video: buf,
+          caption: item.text || undefined,
+        });
+        status = 'sent';
+      }
+    } catch (err) {
+      console.error('[MetaJI outbound] Erro ao enviar mensagem:', item?.id, err?.message || err);
+    }
+
+    try {
+      await fetch(`${baseUrl}/bot-connect/outbound/${item.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeader },
+        body: JSON.stringify({ status }),
+      });
+    } catch (_) {}
+    finally {
+      outboundInFlight.delete(item.id);
+    }
   }
 }
 
@@ -342,6 +417,28 @@ export async function sendMetajiConnectionEvent(conn, eventType, options = {}) {
   }, conn);
 }
 
+// Eventos de WhatsApp para o Kanban do usuário (MVP).
+export async function sendMetajiWhatsAppEvent(conn, waEvent) {
+  return sendMetajiConnectionEvent(conn, 'STATUS_UPDATE', {
+    message: 'wa_event',
+    payload: {
+      logCategory: 'wa',
+      ...waEvent,
+    },
+  });
+}
+
+// Snapshot de chats (para preencher o Kanban sem depender de novas mensagens).
+export async function sendMetajiWhatsAppChatsSnapshot(conn, snapshot) {
+  return sendMetajiConnectionEvent(conn, 'STATUS_UPDATE', {
+    message: 'wa_chats_snapshot',
+    payload: {
+      logCategory: 'wa_chats_snapshot',
+      ...snapshot,
+    },
+  });
+}
+
 function normalizeExecutionLogMessage(message) {
   if (typeof message !== 'string') {
     return '';
@@ -379,6 +476,12 @@ export function startMetajiHeartbeat(conn) {
     return;
   }
 
+  // Outbound (envio de mensagens do painel): roda mais frequente para reduzir latência percebida.
+  // Mantemos um intervalo mínimo baixo, independente do heartbeat.
+  outboundTimer = setInterval(async () => {
+    await pollAndSendOutbound(conn).catch(() => {});
+  }, 1200);
+
   heartbeatTimer = setInterval(async () => {
     await syncMetajiRemoteBotConfig(conn).catch(() => {});
     await syncMetajiRemoteBotApiConfig(conn).catch(() => {});
@@ -387,6 +490,32 @@ export function startMetajiHeartbeat(conn) {
       configVersion: lastSyncedConfigVersion || null,
       apiConfigVersion: lastSyncedApiConfigVersion || null,
     }).catch(() => {});
+
+    // Envia snapshot leve de chats periodicamente (MVP).
+    try {
+      const { getSessionNameForApi } = await import('./agentApi.config.js');
+      const sessionDir = getMetajiSessionDir(conn);
+      const baseDir = global.__mainDir || process.cwd();
+      const authDir = sessionDir && sessionDir !== baseDir
+        ? path.relative(baseDir, sessionDir).replace(/\\/g, '/')
+        : '';
+      const sessionName = getSessionNameForApi(authDir);
+      if (sessionName) {
+        const chats = conn?.chats ? Object.values(conn.chats) : [];
+        const mapped = chats
+          .filter((c) => c && typeof c === 'object' && typeof c.id === 'string')
+          .slice(0, 200)
+          .map((c) => ({
+            remoteJid: c.id,
+            chatTitle: c.name || c.subject || '',
+            chatType: c.id?.endsWith('@g.us') ? 'group' : 'private',
+            lastMessageAt: c.conversationTimestamp ? new Date(Number(c.conversationTimestamp) * 1000).toISOString() : undefined,
+          }));
+        if (mapped.length) {
+          await sendMetajiWhatsAppChatsSnapshot(conn, { sessionName, chats: mapped }).catch(() => {});
+        }
+      }
+    } catch (_) {}
   }, Math.max(config.heartbeatIntervalMs, 5000));
 }
 
@@ -394,5 +523,9 @@ export function stopMetajiHeartbeat() {
   if (heartbeatTimer) {
     clearInterval(heartbeatTimer);
     heartbeatTimer = null;
+  }
+  if (outboundTimer) {
+    clearInterval(outboundTimer);
+    outboundTimer = null;
   }
 }

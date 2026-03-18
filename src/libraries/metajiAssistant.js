@@ -89,8 +89,11 @@ export async function tryMetajiAssistant(conn, m) {
 
   const sessionDir = getMetajiSessionDir(conn || global.conn)
   const { history, expired } = loadAssistantHistory(sessionDir, chatId)
-
-  const CONVERSATION_EXPIRED_MSG = '⏱️ O tempo da nossa conversa acabou. Você pode iniciar uma nova conversa quando quiser!'
+  // Se o histórico expirou (10 min sem mensagens), encerra a conversa anterior e inicia outra.
+  // Não enviamos aviso de "tempo acabou"; apenas um aviso curto por ausência.
+  if (expired) {
+    await socket.sendMessage(m.chat, { text: 'Encerrei sua conversa por ausência.' }).catch(() => {})
+  }
 
   const media = []
   if (hasMedia && typeof m.download === 'function') {
@@ -158,12 +161,36 @@ export async function tryMetajiAssistant(conn, m) {
         body: JSON.stringify({
           sessionName: agentApi.sessionName,
           message: messageText,
-          context: (senderName || senderNumber || senderId || chatId) ? { senderName, senderNumber, senderId, chatId } : undefined,
+          history: (!expired && history.length) ? history : undefined,
+          context: (senderName || senderNumber || senderId || chatId) ? { senderName, senderNumber, senderId, chatId, chatType: chatId?.endsWith('@g.us') ? 'group' : 'private' } : undefined,
         }),
       })
       const data = await response.json().catch(() => ({}))
       if (response.ok && data.handled && data.reply?.text) {
-        await socket.sendMessage(m.chat, { text: data.reply.text })
+        // Envia texto e, se houver, mídias (imagens) retornadas pelo agente.
+        let replyText = data.reply.text
+        // Se por algum motivo a API devolveu JSON como texto, tenta extrair o campo text.
+        if (typeof replyText === 'string' && replyText.trim().startsWith('{') && replyText.includes('"text"')) {
+          try {
+            const obj = JSON.parse(replyText)
+            if (obj && typeof obj.text === 'string') replyText = obj.text
+          } catch {}
+        }
+        const replyMedia = Array.isArray(data.reply.media) ? data.reply.media : []
+        if (replyMedia.length > 0) {
+          for (const mediaItem of replyMedia.slice(0, 2)) {
+            const mt = (mediaItem?.mimeType || '').toString()
+            const b64 = (mediaItem?.data || '').toString()
+            if (!mt.startsWith('image/') || !b64) continue
+            const buffer = Buffer.from(b64, 'base64')
+            await socket.sendMessage(m.chat, { image: buffer, caption: replyText })
+          }
+        } else {
+          await socket.sendMessage(m.chat, { text: replyText })
+        }
+
+        // Salva histórico também no fluxo por sessão (senão a IA não recebe contexto nas próximas mensagens).
+        appendAssistantHistory(sessionDir, chatId, messageText, replyText)
         return true
       }
     } catch (err) {
@@ -179,7 +206,7 @@ export async function tryMetajiAssistant(conn, m) {
     const body = {
       chatId,
       message: messageText,
-      history: history.length ? history : undefined,
+      history: (!expired && history.length) ? history : undefined,
       context: (senderName || senderNumber || senderId) ? { senderName, senderNumber, senderId } : undefined,
     }
     if (media.length > 0) body.media = media
@@ -209,15 +236,22 @@ export async function tryMetajiAssistant(conn, m) {
       return false
     }
 
-    // Sempre envia a resposta real da API (ex.: "Nenhum assistente configurado" ou resposta da IA)
-    await socket.sendMessage(m.chat, { text: data.reply.text })
-
-    if (expired) {
-      await socket.sendMessage(m.chat, { text: CONVERSATION_EXPIRED_MSG })
-      return true
+    // Sempre envia a resposta real da API. Se houver mídias (imagens), envia junto.
+    const replyText = data.reply.text
+    const replyMedia = Array.isArray(data.reply.media) ? data.reply.media : []
+    if (replyMedia.length > 0) {
+      for (const mediaItem of replyMedia.slice(0, 2)) {
+        const mt = (mediaItem?.mimeType || '').toString()
+        const b64 = (mediaItem?.data || '').toString()
+        if (!mt.startsWith('image/') || !b64) continue
+        const buffer = Buffer.from(b64, 'base64')
+        await socket.sendMessage(m.chat, { image: buffer, caption: replyText })
+      }
+    } else {
+      await socket.sendMessage(m.chat, { text: replyText })
     }
 
-    appendAssistantHistory(sessionDir, chatId, messageText, data.reply.text)
+    appendAssistantHistory(sessionDir, chatId, messageText, replyText)
     return true
   } catch (err) {
     console.error('[MetaJI assistente] Erro ao chamar API:', err?.message || err)

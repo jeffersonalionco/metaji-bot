@@ -14,6 +14,8 @@ import {
 import {
     format
 } from "util";
+import { getMetajiConfig, getMetajiSessionDir, sendMetajiWhatsAppEvent } from "./metajiWebhook.js";
+import { getSessionNameForApi } from "./agentApi.config.js";
 import {
     fileURLToPath
 } from "url";
@@ -50,6 +52,53 @@ export function makeWASocket(connectionOptions, options = {}) {
     const conn = (global.opts["legacy"] ? makeWALegacySocket : _makeWaSocket)(
         connectionOptions,
     );
+
+    // Espelho WhatsApp (MVP): captura mensagens enviadas pelo bot (fromMe) e envia para API.
+    try {
+        const originalSendMessage = conn.sendMessage.bind(conn);
+        conn.sendMessage = async (jid, content, sendOptions = {}) => {
+            const res = await originalSendMessage(jid, content, sendOptions);
+            try {
+                const cfg = getMetajiConfig(conn);
+                if (cfg?.enabled && cfg?.baseUrl && cfg?.webhookToken) {
+                    const sessionDir = getMetajiSessionDir(conn);
+                    const baseDir = global.__mainDir || process.cwd();
+                    const authDir = sessionDir && sessionDir !== baseDir
+                        ? path.relative(baseDir, sessionDir).replace(/\\/g, "/")
+                        : "";
+                    const sessionName = getSessionNameForApi(authDir);
+                    const text =
+                        (typeof content?.text === "string" && content.text.trim())
+                        || (typeof content?.caption === "string" && content.caption.trim())
+                        || "";
+                    let mediaBase64 = undefined;
+                    let mimeType = content?.mimetype || undefined;
+                    if (content?.image && Buffer.isBuffer(content.image)) {
+                        // Envia imagem completa para a API armazenar em storage (limitado a 6MB)
+                        if (content.image.length <= (6 * 1024 * 1024)) {
+                            mediaBase64 = content.image.toString("base64");
+                            if (!mimeType) mimeType = "image/jpeg";
+                        }
+                    }
+                    void sendMetajiWhatsAppEvent(conn, {
+                        sessionName,
+                        remoteJid: jid,
+                        chatType: typeof jid === "string" && jid.endsWith("@g.us") ? "group" : "private",
+                        chatTitle: "",
+                        messageId: res?.key?.id,
+                        fromMe: true,
+                        senderJid: conn?.user?.jid,
+                        text: text || undefined,
+                        mediaType: content?.image ? "imageMessage" : content?.audio ? "audioMessage" : content?.document ? "documentMessage" : (text ? "conversation" : undefined),
+                        mimeType,
+                        mediaBase64,
+                        occurredAt: new Date().toISOString(),
+                    }).catch(() => { });
+                }
+            } catch { }
+            return res;
+        };
+    } catch { }
 
     const sock = Object.defineProperties(conn, {
         chats: {

@@ -2,6 +2,9 @@ import { generateWAMessageFromContent } from "baileys";
 import { smsg } from './src/libraries/simple.js';
 import { tryMetajiMenu } from './src/libraries/metajiMenu.js';
 import { tryMetajiAssistant } from './src/libraries/metajiAssistant.js';
+import { sendMetajiWhatsAppEvent } from './src/libraries/metajiWebhook.js';
+import { getSessionNameForApi } from './src/libraries/agentApi.config.js';
+import { getMetajiConfig, getMetajiSessionDir } from './src/libraries/metajiWebhook.js';
 import { format } from 'util';
 import { fileURLToPath } from 'url';
 import path, { join } from 'path';
@@ -717,12 +720,75 @@ export async function handler(chatUpdate) {
     const isBotAdmin = bot?.admin || false; // Are you Admin?
 
     const textTrim = (m.text || '').trim();
-    const hasSupportedMedia = /^(imageMessage|audioMessage)$/.test(m.mtype || '')
+    const hasSupportedMedia = /^(imageMessage|audioMessage|videoMessage)$/.test(m.mtype || '')
       || (m.mtype === 'documentMessage' && (/\.pdf$/i.test(m.msg?.fileName || m?.message?.documentMessage?.fileName || '') || m.msg?.mimetype === 'application/pdf'));
     const prefixRegex = global.prefix && global.prefix instanceof RegExp ? global.prefix : /^[#!/.]/;
     const looksLikeCommand = textTrim && prefixRegex.test(textTrim);
     const isFinishMenu = textTrim === '#';
     if (textTrim || hasSupportedMedia) {
+      // Kanban (MVP): envia evento de mensagem para a API (não bloqueia fluxo)
+      try {
+        const cfg = getMetajiConfig(this);
+        const baseUrlOk = Boolean(cfg?.enabled && cfg?.baseUrl && cfg?.webhookToken);
+        const sessionDir = getMetajiSessionDir(this);
+        const baseDir = global.__mainDir || process.cwd();
+        const authDir = sessionDir && sessionDir !== baseDir
+          ? path.relative(baseDir, sessionDir).replace(/\\/g, '/')
+          : '';
+        const sessionName = getSessionNameForApi(authDir);
+
+        if (baseUrlOk && sessionName) {
+          const occurredAt = m.messageTimestamp
+            ? new Date(Number(m.messageTimestamp) * 1000).toISOString()
+            : new Date().toISOString();
+
+          const msgAny = m.message || {};
+          const imageThumb = msgAny?.imageMessage?.jpegThumbnail;
+          const videoThumb = msgAny?.videoMessage?.jpegThumbnail;
+          const docThumb = msgAny?.documentMessage?.jpegThumbnail;
+          const thumbBuf = imageThumb || videoThumb || docThumb;
+          const thumbnailBase64 = Buffer.isBuffer(thumbBuf)
+            ? thumbBuf.toString('base64')
+            : (typeof thumbBuf === 'string' ? thumbBuf : undefined);
+
+          let mediaBase64 = undefined;
+          if (m.mtype === 'imageMessage' && typeof m.download === 'function') {
+            try {
+              const buf = await m.download();
+              if (buf && Buffer.isBuffer(buf) && buf.length <= (6 * 1024 * 1024)) {
+                mediaBase64 = buf.toString('base64');
+              }
+            } catch (_) {}
+          }
+          if (m.mtype === 'videoMessage' && typeof m.download === 'function') {
+            try {
+              const buf = await m.download();
+              if (buf && Buffer.isBuffer(buf) && buf.length <= (16 * 1024 * 1024)) {
+                mediaBase64 = buf.toString('base64');
+              }
+            } catch (_) {}
+          }
+
+          const mimeType = m.msg?.mimetype || (m.mtype === 'videoMessage' && (m.msg?.videoMessage?.mimetype || m.message?.videoMessage?.mimetype)) || undefined;
+
+          void sendMetajiWhatsAppEvent(this, {
+            sessionName,
+            remoteJid: m.chat,
+            chatType: m.isGroup ? 'group' : 'private',
+            chatTitle: m.isGroup ? (groupMetadata?.subject || groupMetadata?.name || undefined) : undefined,
+            messageId: m.key?.id,
+            fromMe: Boolean(m.key?.fromMe),
+            senderJid: m.sender,
+            text: textTrim || undefined,
+            mediaType: m.mtype || undefined,
+            mimeType: mimeType || (m.mtype === 'videoMessage' ? 'video/mp4' : undefined),
+            thumbnailBase64,
+            mediaBase64,
+            occurredAt,
+          }).catch(() => {});
+        }
+      } catch (_) {}
+
       if (!looksLikeCommand || isFinishMenu) {
         if (textTrim) {
           const menuHandled = await tryMetajiMenu(this, m).catch(() => false);
