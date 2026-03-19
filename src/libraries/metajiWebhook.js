@@ -207,6 +207,12 @@ async function pollAndSendOutbound(conn) {
     let status = 'failed';
     try {
       const jid = item.remoteJid;
+      const readBinaryFromUrl = async (url) => {
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error(`Falha ao baixar mediaUrl: ${resp.status}`);
+        const arr = await resp.arrayBuffer();
+        return Buffer.from(arr);
+      };
       if (item.type === 'text') {
         await conn.sendMessage(jid, { text: item.text || '' });
         status = 'sent';
@@ -217,8 +223,22 @@ async function pollAndSendOutbound(conn) {
           caption: item.text || undefined,
         });
         status = 'sent';
+      } else if (item.type === 'image' && item.mediaUrl) {
+        const buf = await readBinaryFromUrl(item.mediaUrl);
+        await conn.sendMessage(jid, {
+          image: buf,
+          caption: item.text || undefined,
+        });
+        status = 'sent';
       } else if (item.type === 'video' && item.mediaBase64) {
         const buf = Buffer.from(item.mediaBase64, 'base64');
+        await conn.sendMessage(jid, {
+          video: buf,
+          caption: item.text || undefined,
+        });
+        status = 'sent';
+      } else if (item.type === 'video' && item.mediaUrl) {
+        const buf = await readBinaryFromUrl(item.mediaUrl);
         await conn.sendMessage(jid, {
           video: buf,
           caption: item.text || undefined,
