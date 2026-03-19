@@ -24,6 +24,9 @@ global.multiSession = {
   ],
   // Porta do mini-servidor para solicitar novas sessões pelo navegador (QR na tela). 0 = desligado.
   serverPort: Number(process.env.METAJI_SESSION_SERVER_PORT || 3456),
+  // Limite maximo de sessoes ativas (conectadas + pendentes/QR).
+  // Se 0 ou vazio, fica sem limite.
+  maxSessions: Number(process.env.METAJI_SESSIONS_MAX || 0),
   /**
    * Senha para acessar as rotas HTTP de sessions (/api/sessions/*).
    * Lida do .env (METAJI_SESSION_PASSWORD). Se vazio, as rotas de API ficam desabilitadas.

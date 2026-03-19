@@ -662,7 +662,12 @@ if (global.__multiSessionPending) {
   const __dirnameMain = dirname(fileURLToPath(import.meta.url));
   const obfuscatedPath = join(__dirnameMain, 'dist', 'multiSessionManager.obfuscated.js');
   const normalPath = join(__dirnameMain, 'src', 'libraries', 'multiSessionManager.js');
-  const managerModulePath = existsSync(obfuscatedPath) ? pathToFileURL(obfuscatedPath).href : pathToFileURL(normalPath).href;
+  const restartMinutes = Number(process.env.METAJI_SESSIONS_RESTART_MINUTES || 0);
+  const forceSrc = String(process.env.METAJI_FORCE_MULTISESSION_SRC || '').toLowerCase() === '1';
+  // Para garantir que a lógica do restart automático esteja presente (sem depender da dist ofuscada).
+  const managerModulePath = (forceSrc || restartMinutes > 0) && existsSync(normalPath)
+    ? pathToFileURL(normalPath).href
+    : (existsSync(obfuscatedPath) ? pathToFileURL(obfuscatedPath).href : pathToFileURL(normalPath).href);
   const { startMultiSession } = await import(managerModulePath);
   const handlerModule = await import('./handler.js');
 
@@ -1070,6 +1075,7 @@ if (global.__multiSessionPending) {
     makeWASocket,
     sessionsDir: sessionsDir || '',
     apiSecretKey: global.multiSession?.apiSecretKey || '',
+    maxSessions: global.multiSession?.maxSessions || 0,
     onSessionRegistered,
     onSessionDisconnected,
   });
