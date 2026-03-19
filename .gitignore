@@ -17,7 +17,7 @@ Session_*/
 **/metaji.json
 
 # Pasta de dados do multiSessionManager dentro de libraries (não versionar; o .js continua versionado)
-src/libraries/multiSessionManager.js
+# src/libraries/multiSessionManager.js
 
 # Local Databases
 src/glx/db/database.json
