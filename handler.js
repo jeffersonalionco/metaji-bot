@@ -755,19 +755,14 @@ export async function handler(chatUpdate) {
           if (m.mtype === 'imageMessage' && typeof m.download === 'function') {
             try {
               const buf = await m.download();
-              if (buf && Buffer.isBuffer(buf) && buf.length <= (6 * 1024 * 1024)) {
+              // Evita 413 no webhook (Nginx/body limit): imagem só em base64 se for pequena.
+              if (buf && Buffer.isBuffer(buf) && buf.length <= (2 * 1024 * 1024)) {
                 mediaBase64 = buf.toString('base64');
               }
             } catch (_) {}
           }
-          if (m.mtype === 'videoMessage' && typeof m.download === 'function') {
-            try {
-              const buf = await m.download();
-              if (buf && Buffer.isBuffer(buf) && buf.length <= (16 * 1024 * 1024)) {
-                mediaBase64 = buf.toString('base64');
-              }
-            } catch (_) {}
-          }
+          // Para vídeo, não envia base64 no webhook (payload muito grande -> 413).
+          // O modal continua exibindo metadados e thumbnail quando disponível.
 
           const mimeType = m.msg?.mimetype || (m.mtype === 'videoMessage' && (m.msg?.videoMessage?.mimetype || m.message?.videoMessage?.mimetype)) || undefined;
 
