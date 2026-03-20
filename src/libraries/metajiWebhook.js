@@ -28,6 +28,7 @@ export function getMetajiSessionDir(conn) {
 let heartbeatTimer = null;
 let outboundTimer = null;
 const outboundInFlight = new Set();
+const profilePhotoCache = new Map();
 let lastSyncedConfigVersion = 0;
 let lastSyncedApiConfigVersion = 0;
 const MAX_EXECUTION_LOG_LENGTH = 4000;
@@ -457,11 +458,31 @@ export async function sendMetajiConnectionEvent(conn, eventType, options = {}) {
 
 // Eventos de WhatsApp para o Kanban do usuário (MVP).
 export async function sendMetajiWhatsAppEvent(conn, waEvent) {
+  const remoteJid = (waEvent?.remoteJid || '').toString().trim();
+  let profilePhotoUrl = waEvent?.profilePhotoUrl || undefined;
+  if (!profilePhotoUrl && remoteJid) {
+    try {
+      const now = Date.now();
+      const cached = profilePhotoCache.get(remoteJid);
+      if (cached && now - cached.at < 10 * 60 * 1000) {
+        profilePhotoUrl = cached.url || undefined;
+      } else if (typeof conn?.profilePictureUrl === 'function') {
+        const url = await conn.profilePictureUrl(remoteJid, 'image').catch(() => null);
+        if (url && typeof url === 'string') {
+          profilePhotoUrl = url;
+          profilePhotoCache.set(remoteJid, { url, at: now });
+        } else {
+          profilePhotoCache.set(remoteJid, { url: null, at: now });
+        }
+      }
+    } catch (_) {}
+  }
   return sendMetajiConnectionEvent(conn, 'STATUS_UPDATE', {
     message: 'wa_event',
     payload: {
       logCategory: 'wa',
       ...waEvent,
+      ...(profilePhotoUrl ? { profilePhotoUrl } : {}),
     },
   });
 }
