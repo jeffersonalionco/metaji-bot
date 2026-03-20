@@ -67,6 +67,11 @@ export function makeWASocket(connectionOptions, options = {}) {
                         ? path.relative(baseDir, sessionDir).replace(/\\/g, "/")
                         : "";
                     const sessionName = getSessionNameForApi(authDir);
+                    const remoteJid =
+                        typeof jid === "string"
+                            ? jid.trim()
+                            : (jid?.remoteJid ? String(jid.remoteJid).trim() : String(jid || "").trim());
+                    if (!remoteJid) return res;
                     const text =
                         (typeof content?.text === "string" && content.text.trim())
                         || (typeof content?.caption === "string" && content.caption.trim())
@@ -82,8 +87,8 @@ export function makeWASocket(connectionOptions, options = {}) {
                     }
                     void sendMetajiWhatsAppEvent(conn, {
                         sessionName,
-                        remoteJid: jid,
-                        chatType: typeof jid === "string" && jid.endsWith("@g.us") ? "group" : "private",
+                        remoteJid,
+                        chatType: remoteJid.endsWith("@g.us") ? "group" : "private",
                         chatTitle: "",
                         messageId: res?.key?.id,
                         fromMe: true,
@@ -128,6 +133,11 @@ export function makeWASocket(connectionOptions, options = {}) {
                             ? path.relative(baseDir, sessionDir).replace(/\\/g, "/")
                             : "";
                         const sessionName = getSessionNameForApi(authDir);
+                        const remoteJid =
+                            typeof jid === "string"
+                                ? jid.trim()
+                                : (jid?.remoteJid ? String(jid.remoteJid).trim() : String(jid || "").trim());
+                        if (!remoteJid) return res;
 
                         const text =
                             msg?.conversation
@@ -140,8 +150,8 @@ export function makeWASocket(connectionOptions, options = {}) {
 
                         void sendMetajiWhatsAppEvent(conn, {
                             sessionName,
-                            remoteJid: jid,
-                            chatType: typeof jid === "string" && jid.endsWith("@g.us") ? "group" : "private",
+                            remoteJid,
+                            chatType: remoteJid.endsWith("@g.us") ? "group" : "private",
                             chatTitle: "",
                             messageId: relayOptions?.messageId || res?.key?.id,
                             fromMe: true,
