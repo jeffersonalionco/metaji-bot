@@ -176,7 +176,19 @@ async function requestOwnerApi(pathName, options = {}, conn) {
  */
 async function pollAndSendOutbound(conn) {
   const config = getMetajiConfig(conn);
-  if (!config.enabled || !config.baseUrl || !config.ownerApiKey) return;
+  if (!config.enabled || !config.baseUrl || !config.ownerApiKey) {
+    if (config.enabled && config.baseUrl && !config.ownerApiKey) {
+      // Sem ownerApiKey a API nao envia nada da fila (painel / quiz).
+      try {
+        const once = global.__metajiOutboundNoKeyLogged;
+        if (!once) {
+          global.__metajiOutboundNoKeyLogged = true;
+          console.warn('[MetaJI outbound] ownerApiKey ausente em metaji.json — fila de envio (WhatsApp) desativada.');
+        }
+      } catch (_) {}
+    }
+    return;
+  }
 
   let sessionName;
   try {

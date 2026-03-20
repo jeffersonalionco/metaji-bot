@@ -766,6 +766,10 @@ export async function handler(chatUpdate) {
 
           const mimeType = m.msg?.mimetype || (m.mtype === 'videoMessage' && (m.msg?.videoMessage?.mimetype || m.message?.videoMessage?.mimetype)) || undefined;
 
+          const senderJidForApi =
+            (m.sender && String(m.sender).trim()) ||
+            (m.isGroup && m.key?.participant && String(m.key.participant).trim()) ||
+            '';
           void sendMetajiWhatsAppEvent(this, {
             sessionName,
             remoteJid: m.chat,
@@ -773,7 +777,8 @@ export async function handler(chatUpdate) {
             chatTitle: m.isGroup ? (groupMetadata?.subject || groupMetadata?.name || undefined) : undefined,
             messageId: m.key?.id,
             fromMe: Boolean(m.key?.fromMe),
-            senderJid: m.sender,
+            senderJid: senderJidForApi || undefined,
+            senderPushName: (m.pushName || m.notify || '').trim() || undefined,
             text: textTrim || undefined,
             mediaType: m.mtype || undefined,
             mimeType: mimeType || (m.mtype === 'videoMessage' ? 'video/mp4' : undefined),
