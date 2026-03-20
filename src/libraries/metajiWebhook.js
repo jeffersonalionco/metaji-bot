@@ -208,7 +208,11 @@ async function pollAndSendOutbound(conn) {
     try {
       const jid = item.remoteJid;
       const readBinaryFromUrl = async (url) => {
-        const resp = await fetch(url);
+        const raw = String(url ?? '')
+        const absolute = raw.startsWith('/')
+          ? `${baseUrl}${raw}`
+          : raw
+        const resp = await fetch(absolute);
         if (!resp.ok) throw new Error(`Falha ao baixar mediaUrl: ${resp.status}`);
         const arr = await resp.arrayBuffer();
         return Buffer.from(arr);
@@ -247,6 +251,20 @@ async function pollAndSendOutbound(conn) {
       }
     } catch (err) {
       console.error('[MetaJI outbound] Erro ao enviar mensagem:', item?.id, err?.message || err);
+    }
+
+    // Limpa arquivo temporário (upload-temp) após sucesso.
+    if (status === 'sent' && typeof item.mediaUrl === 'string' && item.mediaUrl.includes('/media/wa/tmp/')) {
+      try {
+        const idx = item.mediaUrl.indexOf('/media/')
+        const key = idx >= 0 ? item.mediaUrl.slice(idx + '/media/'.length) : null
+        if (key && key.startsWith('wa/tmp/')) {
+          await fetch(`${baseUrl}/bot-connect/owner/media-temp/${encodeURIComponent(key)}`, {
+            method: 'DELETE',
+            headers: { ...authHeader },
+          })
+        }
+      } catch (_) {}
     }
 
     try {
