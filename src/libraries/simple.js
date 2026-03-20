@@ -100,6 +100,63 @@ export function makeWASocket(connectionOptions, options = {}) {
         };
     } catch { }
 
+    // Algumas respostas do bot (ex.: listas de comandos) são enviadas por relayMessage
+    // e não passam pelo sendMessage. Espelhamos esses casos para o modal da API.
+    try {
+        const originalRelayMessage = conn.relayMessage.bind(conn);
+        conn.relayMessage = async (jid, message, relayOptions = {}) => {
+            const res = await originalRelayMessage(jid, message, relayOptions);
+            try {
+                const cfg = getMetajiConfig(conn);
+                if (cfg?.enabled && cfg?.baseUrl && cfg?.webhookToken) {
+                    const msg = message || {};
+                    const hasList =
+                        Boolean(msg.listMessage) ||
+                        Boolean(msg.viewOnceMessage?.message?.listMessage) ||
+                        Boolean(msg.viewOnceMessageV2?.message?.listMessage) ||
+                        Boolean(msg.viewOnceMessageV2Extension?.message?.listMessage);
+                    const hasButtons =
+                        Boolean(msg.buttonsMessage) ||
+                        Boolean(msg.templateMessage) ||
+                        Boolean(msg.interactiveMessage);
+
+                    // Evita duplicar texto "normal" já espelhado por sendMessage.
+                    if (hasList || hasButtons) {
+                        const sessionDir = getMetajiSessionDir(conn);
+                        const baseDir = global.__mainDir || process.cwd();
+                        const authDir = sessionDir && sessionDir !== baseDir
+                            ? path.relative(baseDir, sessionDir).replace(/\\/g, "/")
+                            : "";
+                        const sessionName = getSessionNameForApi(authDir);
+
+                        const text =
+                            msg?.conversation
+                            || msg?.extendedTextMessage?.text
+                            || msg?.listMessage?.description
+                            || msg?.listMessage?.title
+                            || msg?.templateMessage?.hydratedTemplate?.hydratedContentText
+                            || msg?.buttonsMessage?.contentText
+                            || (hasList ? "[Lista de comandos]" : "[Mensagem enviada pelo bot]");
+
+                        void sendMetajiWhatsAppEvent(conn, {
+                            sessionName,
+                            remoteJid: jid,
+                            chatType: typeof jid === "string" && jid.endsWith("@g.us") ? "group" : "private",
+                            chatTitle: "",
+                            messageId: relayOptions?.messageId || res?.key?.id,
+                            fromMe: true,
+                            senderJid: conn?.user?.jid,
+                            text: typeof text === "string" ? text : String(text || ""),
+                            mediaType: hasList ? "listMessage" : (hasButtons ? "interactiveMessage" : "conversation"),
+                            occurredAt: new Date().toISOString(),
+                        }).catch(() => { });
+                    }
+                }
+            } catch { }
+            return res;
+        };
+    } catch { }
+
     const sock = Object.defineProperties(conn, {
         chats: {
             value: {
