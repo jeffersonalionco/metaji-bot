@@ -15,6 +15,8 @@ const { say } = cfonts;
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 let isRunning = false;
 let childProcess = null;
+/** Timer do reinício completo do processo (master + worker). Ver METAJI_PROCESS_RESTART_MINUTES. */
+let processFullRestartTimer = null;
 
 const question = (texto) => new Promise((resolver) => rl.question(texto, resolver));
 
@@ -119,8 +121,50 @@ async function start(file) {
   forkProcess(file);
 }
 
+/**
+ * Reinício completo do Node (recomendado em produção com PM2 ou systemd com Restart=always).
+ * Encerra o master; o gerenciador de processos sobe o bot de novo do zero.
+ *
+ * METAJI_PROCESS_RESTART_MINUTES — minutos até encerrar (padrão: 0 = desligado).
+ * Use 60 para 1 hora. Saída com código 1 para o PM2 reiniciar (autorestart).
+ */
+function scheduleFullProcessRestart() {
+  if (processFullRestartTimer) {
+    clearTimeout(processFullRestartTimer);
+    processFullRestartTimer = null;
+  }
+  const raw = process.env.METAJI_PROCESS_RESTART_MINUTES;
+  const minutes = raw === undefined || raw === '' ? 0 : Number(raw);
+  if (!Number.isFinite(minutes) || minutes <= 0) {
+    return;
+  }
+  const ms = Math.round(minutes * 60 * 1000);
+  if (process.env.pm_id === undefined && process.env.INVOCATION_ID === undefined) {
+    console.warn(
+      chalk.red.bold(
+        '[!] METAJI_PROCESS_RESTART_MINUTES: sem PM2/systemd o processo não volta sozinho após o reinício. Use: pm2 start ecosystem.config.cjs',
+      ),
+    );
+  }
+  console.log(
+    chalk.cyan.bold(
+      `—◉ㅤReinício completo do processo agendado: ${minutes} min (variável METAJI_PROCESS_RESTART_MINUTES). Use PM2 (autorestart) ou systemd (Restart=always).`,
+    ),
+  );
+  processFullRestartTimer = setTimeout(() => {
+    processFullRestartTimer = null;
+    console.log(
+      chalk.yellow.bold(
+        '—◉ㅤEncerrando processo Node para reinício automático (estado limpo).',
+      ),
+    );
+    process.exit(1);
+  }, ms);
+}
+
 function forkProcess(file) {
   childProcess = fork();
+  scheduleFullProcessRestart();
 
   childProcess.on('message', (data) => {
     console.log(chalk.green.bold('—◉ㅤRECEBIDO:'), data);

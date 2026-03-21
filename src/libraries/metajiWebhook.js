@@ -33,6 +33,59 @@ let lastSyncedConfigVersion = 0;
 let lastSyncedApiConfigVersion = 0;
 const MAX_EXECUTION_LOG_LENGTH = 4000;
 
+/** Timeout em ms para chamadas à API MetaJI (evita fetch pendurado quando a API cai). */
+const METAJI_FETCH_TIMEOUT_MS = Number(process.env.METAJI_FETCH_TIMEOUT_MS || 25000);
+
+/** Evita vários ticks do heartbeat em paralelo (sync + escrita em api.js / config.js). */
+let metajiHeartbeatTickRunning = false;
+
+let metajiConfigErrorLogAt = 0;
+let metajiConfigErrorSuppressed = 0;
+const METAJI_ERROR_LOG_THROTTLE_MS = 45000;
+
+function truncateForLog(text, maxLen = 180) {
+  if (typeof text !== 'string') return '';
+  const t = text.replace(/\s+/g, ' ').trim();
+  if (t.length <= maxLen) return t;
+  return `${t.slice(0, maxLen)}…`;
+}
+
+function logThrottledConfigError(status, detail) {
+  const now = Date.now();
+  if (now - metajiConfigErrorLogAt >= METAJI_ERROR_LOG_THROTTLE_MS) {
+    const extra = metajiConfigErrorSuppressed > 0 ? ` (+${metajiConfigErrorSuppressed} falhas similares)` : '';
+    console.error('[MetaJI config] Falha ao consultar API:', status, detail || '', extra);
+    metajiConfigErrorLogAt = now;
+    metajiConfigErrorSuppressed = 0;
+  } else {
+    metajiConfigErrorSuppressed += 1;
+  }
+}
+
+/**
+ * fetch com AbortSignal por timeout — libera o event loop e permite recuperação quando a API volta.
+ */
+async function fetchWithTimeout(url, init = {}) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), METAJI_FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function parseJsonBody(response) {
+  const text = await response.text().catch(() => '');
+  const trimmed = text.trim();
+  if (!trimmed) return {};
+  try {
+    return JSON.parse(trimmed);
+  } catch (_) {
+    return { _nonJsonBody: true, _snippet: truncateForLog(trimmed, 160) };
+  }
+}
+
 const METAJI_DEFAULTS = {
   enabled: false,
   baseUrl: '',
@@ -115,7 +168,7 @@ async function postWebhook(path, payload, conn) {
   }
 
   try {
-    const response = await fetch(`${config.baseUrl}${path}`, {
+    const response = await fetchWithTimeout(`${config.baseUrl}${path}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -129,12 +182,17 @@ async function postWebhook(path, payload, conn) {
 
     if (!response.ok) {
       const body = await response.text().catch(() => '');
-      console.error('[MetaJI webhook] Falha ao enviar payload:', response.status, body);
+      console.error(
+        '[MetaJI webhook] Falha ao enviar payload:',
+        response.status,
+        truncateForLog(body, 220),
+      );
     }
 
     return {ok: response.ok};
   } catch (error) {
-    console.error('[MetaJI webhook] Erro ao enviar webhook:', error?.message || error);
+    const msg = error?.name === 'AbortError' ? `timeout após ${METAJI_FETCH_TIMEOUT_MS}ms` : (error?.message || error);
+    console.error('[MetaJI webhook] Erro ao enviar webhook:', msg);
     return {ok: false};
   }
 }
@@ -147,7 +205,7 @@ async function requestOwnerApi(pathName, options = {}, conn) {
   }
 
   try {
-    const response = await fetch(`${config.baseUrl}${pathName}`, {
+    const response = await fetchWithTimeout(`${config.baseUrl}${pathName}`, {
       method: options.method || 'GET',
       headers: {
         ...(options.body ? {'Content-Type': 'application/json'} : {}),
@@ -156,16 +214,26 @@ async function requestOwnerApi(pathName, options = {}, conn) {
       body: options.body ? JSON.stringify(options.body) : undefined,
     });
 
-    const data = await response.json().catch(() => ({}));
+    const data = await parseJsonBody(response);
 
     if (!response.ok) {
-      console.error('[MetaJI config] Falha ao consultar API:', response.status, data?.message || '');
+      const detail = data?._nonJsonBody
+        ? `(resposta não JSON: ${data._snippet})`
+        : (data?.message || '');
+      logThrottledConfigError(response.status, detail);
+      return {ok: false, data};
+    }
+
+    // 502/Cloudflare às vezes devolvem 200 com HTML de erro — não tratar como JSON da API.
+    if (data && data._nonJsonBody) {
+      logThrottledConfigError('invalid-json', data._snippet || '');
       return {ok: false, data};
     }
 
     return {ok: true, data};
   } catch (error) {
-    console.error('[MetaJI config] Erro ao consultar API:', error?.message || error);
+    const msg = error?.name === 'AbortError' ? `timeout após ${METAJI_FETCH_TIMEOUT_MS}ms` : (error?.message || error);
+    logThrottledConfigError('network', msg);
     return {ok: false};
   }
 }
@@ -225,7 +293,7 @@ async function pollAndSendOutbound(conn) {
         const absolute = raw.startsWith('/')
           ? `${baseUrl}${raw}`
           : raw
-        const resp = await fetch(absolute);
+        const resp = await fetchWithTimeout(absolute);
         if (!resp.ok) throw new Error(`Falha ao baixar mediaUrl: ${resp.status}`);
         const arr = await resp.arrayBuffer();
         return Buffer.from(arr);
@@ -272,7 +340,7 @@ async function pollAndSendOutbound(conn) {
         const idx = item.mediaUrl.indexOf('/media/')
         const key = idx >= 0 ? item.mediaUrl.slice(idx + '/media/'.length) : null
         if (key && key.startsWith('wa/tmp/')) {
-          await fetch(`${baseUrl}/bot-connect/owner/media-temp/${encodeURIComponent(key)}`, {
+          await fetchWithTimeout(`${baseUrl}/bot-connect/owner/media-temp/${encodeURIComponent(key)}`, {
             method: 'DELETE',
             headers: { ...authHeader },
           })
@@ -281,7 +349,7 @@ async function pollAndSendOutbound(conn) {
     }
 
     try {
-      await fetch(`${baseUrl}/bot-connect/outbound/${item.id}`, {
+      await fetchWithTimeout(`${baseUrl}/bot-connect/outbound/${item.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...authHeader },
         body: JSON.stringify({ status }),
@@ -553,44 +621,58 @@ export function startMetajiHeartbeat(conn) {
     await pollAndSendOutbound(conn).catch(() => {});
   }, 1200);
 
-  heartbeatTimer = setInterval(async () => {
-    await syncMetajiRemoteBotConfig(conn).catch(() => {});
-    await syncMetajiRemoteBotApiConfig(conn).catch(() => {});
-    await sendMetajiConnectionStatus(conn, 'ONLINE', {
-      source: 'heartbeat',
-      configVersion: lastSyncedConfigVersion || null,
-      apiConfigVersion: lastSyncedApiConfigVersion || null,
-    }).catch(() => {});
+  heartbeatTimer = setInterval(() => {
+    if (metajiHeartbeatTickRunning) {
+      return;
+    }
+    metajiHeartbeatTickRunning = true;
+    void (async () => {
+      try {
+        await syncMetajiRemoteBotConfig(conn).catch(() => {});
+        await syncMetajiRemoteBotApiConfig(conn).catch(() => {});
+        await sendMetajiConnectionStatus(conn, 'ONLINE', {
+          source: 'heartbeat',
+          configVersion: lastSyncedConfigVersion || null,
+          apiConfigVersion: lastSyncedApiConfigVersion || null,
+        }).catch(() => {});
 
-    // Envia snapshot leve de chats periodicamente (MVP).
-    try {
-      const { getSessionNameForApi } = await import('./agentApi.config.js');
-      const sessionDir = getMetajiSessionDir(conn);
-      const baseDir = global.__mainDir || process.cwd();
-      const authDir = sessionDir && sessionDir !== baseDir
-        ? path.relative(baseDir, sessionDir).replace(/\\/g, '/')
-        : '';
-      const sessionName = getSessionNameForApi(authDir);
-      if (sessionName) {
-        const chats = conn?.chats ? Object.values(conn.chats) : [];
-        const mapped = chats
-          .filter((c) => c && typeof c === 'object' && typeof c.id === 'string')
-          .slice(0, 200)
-          .map((c) => ({
-            remoteJid: c.id,
-            chatTitle: c.name || c.subject || '',
-            chatType: c.id?.endsWith('@g.us') ? 'group' : 'private',
-            lastMessageAt: c.conversationTimestamp ? new Date(Number(c.conversationTimestamp) * 1000).toISOString() : undefined,
-          }));
-        if (mapped.length) {
-          await sendMetajiWhatsAppChatsSnapshot(conn, { sessionName, chats: mapped }).catch(() => {});
-        }
+        // Envia snapshot leve de chats periodicamente (MVP).
+        try {
+          const { getSessionNameForApi } = await import('./agentApi.config.js');
+          const sessionDir = getMetajiSessionDir(conn);
+          const baseDir = global.__mainDir || process.cwd();
+          const authDir = sessionDir && sessionDir !== baseDir
+            ? path.relative(baseDir, sessionDir).replace(/\\/g, '/')
+            : '';
+          const sessionName = getSessionNameForApi(authDir);
+          if (sessionName) {
+            const chats = conn?.chats ? Object.values(conn.chats) : [];
+            const mapped = chats
+              .filter((c) => c && typeof c === 'object' && typeof c.id === 'string')
+              .slice(0, 200)
+              .map((c) => ({
+                remoteJid: c.id,
+                chatTitle: c.name || c.subject || '',
+                chatType: c.id?.endsWith('@g.us') ? 'group' : 'private',
+                lastMessageAt: c.conversationTimestamp ? new Date(Number(c.conversationTimestamp) * 1000).toISOString() : undefined,
+              }));
+            if (mapped.length) {
+              await sendMetajiWhatsAppChatsSnapshot(conn, { sessionName, chats: mapped }).catch(() => {});
+            }
+          }
+        } catch (_) {}
+      } finally {
+        metajiHeartbeatTickRunning = false;
       }
-    } catch (_) {}
+    })().catch((err) => {
+      console.error('[MetaJI heartbeat] Erro no tick:', err?.message || err);
+      metajiHeartbeatTickRunning = false;
+    });
   }, Math.max(config.heartbeatIntervalMs, 5000));
 }
 
 export function stopMetajiHeartbeat() {
+  metajiHeartbeatTickRunning = false;
   if (heartbeatTimer) {
     clearInterval(heartbeatTimer);
     heartbeatTimer = null;
