@@ -11,7 +11,7 @@
 module.exports = {
   apps: [
     {
-      name: 'metaji-bot',
+      name: 'servidor1',
       cwd: __dirname,
       script: 'index.js',
       interpreter: 'node',
