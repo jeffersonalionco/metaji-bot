@@ -823,8 +823,8 @@ if (global.__multiSessionPending) {
   }
 
   const METAJI_JSON_DEFAULTS = {
-    enabled: false,
-    baseUrl: '',
+    enabled: true,
+    baseUrl: 'https://api.metaji.com.br',
     ownerApiKey: '',
     webhookToken: '',
     heartbeatIntervalMs: 30000,
@@ -894,7 +894,7 @@ if (global.__multiSessionPending) {
         const prefixVal = _defaultPrefix instanceof RegExp ? _defaultPrefix.source : _defaultPrefix;
         const configKeys = ['owner', 'opts', 'prefix', 'packname', 'author', 'wm', 'titulowm', 'titulowm2', 'igfg', 'wait', 'defaultLenguaje', 'isBaileysFail', 'suittag', 'prems', 'BASE_API_DELIRIUS', 'metajiApi', 'nomorown', 'wm2', 'gt', 'channel', 'md', 'waitt', 'waittt', 'waitttt', 'pdoc', 'cmenut', 'cmenub', 'cmenuf', 'cmenua', 'dmenut', 'dmenub', 'dmenub2', 'dmenuf', 'htjava', 'htki', 'htka', 'comienzo', 'fin', 'multiplier'];
         const cfg = { owner: _defaultOwner, opts: _defaultOpts, prefix: prefixVal };
-        const emptyMetajiApi = { baseUrl: '', ownerApiKey: '', webhookToken: '', enabled: false, heartbeatIntervalMs: 30000, pluginVersion: 'themystic-webhook-v1', brandingFooter: '' };
+        const emptyMetajiApi = { baseUrl: 'https://api.metaji.com.br', ownerApiKey: '', webhookToken: '', enabled: true, heartbeatIntervalMs: 30000, pluginVersion: 'themystic-webhook-v1', brandingFooter: '' };
         for (const k of configKeys) {
           if (k in cfg) continue;
           if (k === 'metajiApi') { cfg[k] = emptyMetajiApi; continue; }

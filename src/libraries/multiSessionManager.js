@@ -10,6 +10,10 @@ import { resolve, join } from 'path';
 import { createServer } from 'http';
 
 const pendingSessions = new Map();
+/** URL da API MetaJI gravada em metaji.json em novas sessões (sobrescreva com METAJI_DEFAULT_API_BASE_URL). */
+const DEFAULT_METAJI_API_BASE_URL =
+  (process.env.METAJI_DEFAULT_API_BASE_URL && String(process.env.METAJI_DEFAULT_API_BASE_URL).trim()) ||
+  'https://api.metaji.com.br';
 /** Armazena info de sessões conectadas (para status API). sessionName -> { connectedAt, phoneNumber } */
 const connectedSessionsInfo = new Map();
 /** Último erro por sessão (para status API). sessionName -> { message, code, at } */
@@ -725,9 +729,10 @@ function startSessionServer(sessions, config) {
           attachPendingListeners(conn, pending, safeName);
           if (data.ownerApiKey) {
             const metajiPath = join(authPath, 'metaji.json');
+            const baseUrlFromPayload = (data.baseUrl && String(data.baseUrl).trim()) || '';
             const metaji = {
-              enabled: false,
-              baseUrl: data.baseUrl || '',
+              enabled: true,
+              baseUrl: baseUrlFromPayload || DEFAULT_METAJI_API_BASE_URL,
               ownerApiKey: data.ownerApiKey,
               webhookToken: data.webhookToken || '',
               heartbeatIntervalMs: 30000,
